@@ -188,6 +188,15 @@ aiButton.addEventListener("click", aiMove);
 qButton.addEventListener("click", showQ);
 newButton.addEventListener("click", newGame);
 
-// 策略檔只載入一次；Q 表則完全按需載入。
-try { policy = await fetch("best_policy.json").then(response => response.json()); newGame(); }
+// 策略太大，分成五個仍是相同格式的 JSON 檔；進網頁時合併一次。
+// Q 表則完全按需載入，避免第一次開網頁就下載全部 Q 值。
+try {
+  const parts = await Promise.all(["best_policy.json", "best_policy_1.json", "best_policy_2.json", "best_policy_3.json", "best_policy_4.json"]
+    .map(file => fetch(file).then(response => {
+      if (!response.ok) throw new Error("找不到策略檔");
+      return response.json();
+    })));
+  policy = Object.assign({}, ...parts);
+  newGame();
+}
 catch { setStatus("策略表載入失敗。請確認 best_policy.json 在 docs 資料夾。 "); }
