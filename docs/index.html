@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>王車殺單王：Q-learning 棋盤</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">Q-LEARNING · KING + ROOK VS KING</p>
+      <h1>王車殺單王實驗室</h1>
+      <p>你執黑王，白方 AI 使用訓練好的策略表下棋。</p>
+    </header>
+
+    <section class="game-layout" aria-label="棋盤遊戲">
+      <div class="board-wrap">
+        <div id="board" class="board" aria-label="西洋棋棋盤"></div>
+        <p class="legend"><span class="dot hot"></span> Q 值較高　<span class="dot cool"></span> Q 值較低</p>
+      </div>
+
+      <aside class="panel">
+        <div class="status-card">
+          <p class="label">目前狀態</p>
+          <p id="status" class="status" aria-live="polite">正在載入策略表…</p>
+          <p id="move-count">白方已走 0 / 50 步</p>
+        </div>
+        <div class="actions">
+          <button id="ai-move" class="primary">讓白方 AI 走一步</button>
+          <button id="show-q">顯示 Q 分數與熱力圖</button>
+          <button id="new-game" class="quiet">重新開始</button>
+        </div>
+        <section id="q-panel" class="q-panel" hidden>
+          <h2>這個局面的 Q 值</h2>
+          <p id="q-note">選擇白棋時，格子的顏色代表該走法的學習分數。</p>
+          <ol id="move-scores" class="move-scores"></ol>
+        </section>
+        <details>
+          <summary>遊戲與資料說明</summary>
+          <p>白方要在 50 步內將死黑王。將死為白方勝；逼和、白車被吃或走滿 50 步則結束且白方未勝。</p>
+          <p>格子採用 python-chess 編號：a1 = 0、b1 = 1，一直到 h8 = 63。</p>
+          <p>策略表找不到局面時，AI 會從合法走法中隨機選一步。</p>
+        </details>
+      </aside>
+    </section>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
