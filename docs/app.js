@@ -88,17 +88,23 @@ function makeGameFromState(wk, wr, bk) {
   return new Chess(`${ranks.join("/")} w - - 0 1`);
 }
 
+function policyAnswerForCurrentPosition() {
+  const state = currentState();
+  const answer = policy[`${state.wk},${state.wr},${state.bk}`];
+  const isLegal = game.moves({ verbose:true }).some(move => move.from + move.to + (move.promotion || "") === answer);
+  return isLegal ? answer : null;
+}
+
 function startPuzzle() {
   // 策略表裡有大量局面；抽一題時再次確認棋規與答案都有效。
   const states = Object.keys(policy);
   for (let tries = 0; tries < 500; tries++) {
     const [wk, wr, bk] = states[Math.floor(Math.random() * states.length)].split(",").map(Number);
-    const answer = policy[`${wk},${wr},${bk}`];
     try {
       const candidate = makeGameFromState(wk, wr, bk);
-      const legal = candidate.moves({ verbose:true });
-      if (!candidate.isGameOver() && legal.some(move => move.from + move.to + (move.promotion || "") === answer)) {
-        game = candidate;
+      game = candidate;
+      const answer = policyAnswerForCurrentPosition();
+      if (!candidate.isGameOver() && answer) {
         whiteMoves = 0;
         puzzleMode = true;
         puzzleAnswer = answer;
@@ -107,7 +113,7 @@ function startPuzzle() {
         qPanel.hidden = true;
         setModeNote("解題模式：你執白方，找出訓練策略會走的一步。");
         setStatus("輪到白方。點選白王或白車，再選擇你認為最好的走法。");
-        puzzleButton.textContent = "下一題";
+        puzzleButton.textContent = "換一題";
         render();
         return;
       }
@@ -185,11 +191,41 @@ function onPuzzleSquareClick(square) {
   const chosen = move.from + move.to + (move.promotion || "");
   game.move({ from:move.from, to:move.to, promotion:move.promotion });
   selected = null;
-  gameOver = true;
-  if (chosen === puzzleAnswer) {
-    setStatus(`答對了！策略表也選擇 ${puzzleAnswer}。按「下一題」繼續。`);
+  whiteMoves++;
+  const feedback = chosen === puzzleAnswer
+    ? `答對了：策略表也選擇 ${puzzleAnswer}。`
+    : `你走了 ${chosen}；策略表建議 ${puzzleAnswer}。`;
+
+  if (game.isCheckmate()) {
+    gameOver = true;
+    setStatus(`${feedback} 將死！按「換一題」開始新的題目。`);
+    render();
+    return;
+  }
+  if (game.isStalemate() || whiteMoves >= 50) {
+    gameOver = true;
+    setStatus(`${feedback} 這一局已結束。按「換一題」開始新的題目。`);
+    render();
+    return;
+  }
+
+  // 黑王仍然隨機走，但優先選「走完後仍有策略答案」的合法步，讓題目可以接著玩。
+  const blackMoves = game.moves({ verbose:true });
+  const continuingMoves = [];
+  for (const blackMove of blackMoves) {
+    game.move({ from:blackMove.from, to:blackMove.to, promotion:blackMove.promotion });
+    if (policyAnswerForCurrentPosition()) continuingMoves.push(blackMove);
+    game.undo();
+  }
+  const choices = continuingMoves.length ? continuingMoves : blackMoves;
+  const blackMove = choices[Math.floor(Math.random() * choices.length)];
+  game.move({ from:blackMove.from, to:blackMove.to, promotion:blackMove.promotion });
+  puzzleAnswer = policyAnswerForCurrentPosition();
+  if (!puzzleAnswer) {
+    gameOver = true;
+    setStatus(`${feedback} 黑王走 ${blackMove.from}${blackMove.to}；這個後續局面沒有記錄策略。按「換一題」繼續。`);
   } else {
-    setStatus(`這步是 ${chosen}；策略表建議 ${puzzleAnswer}。按「下一題」再試一題。`);
+    setStatus(`${feedback} 黑王走 ${blackMove.from}${blackMove.to}。下一步輪到白方，請再找最佳走法。`);
   }
   render();
 }
