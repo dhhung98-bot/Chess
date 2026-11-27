@@ -192,9 +192,11 @@ function onPuzzleSquareClick(square) {
   game.move({ from:move.from, to:move.to, promotion:move.promotion });
   selected = null;
   whiteMoves++;
-  const feedback = chosen === puzzleAnswer
-    ? `答對了：策略表也選擇 ${puzzleAnswer}。`
-    : `你走了 ${chosen}；策略表建議 ${puzzleAnswer}。`;
+  const feedback = puzzleAnswer === null
+    ? `這個局面沒有訓練策略，已接受你的合法走法 ${chosen}。`
+    : chosen === puzzleAnswer
+      ? `答對了：策略表也選擇 ${puzzleAnswer}。`
+      : `你走了 ${chosen}；策略表建議 ${puzzleAnswer}。`;
 
   if (game.isCheckmate()) {
     gameOver = true;
@@ -209,23 +211,17 @@ function onPuzzleSquareClick(square) {
     return;
   }
 
-  // 黑王仍然隨機走，但優先選「走完後仍有策略答案」的合法步，讓題目可以接著玩。
+  // 與 notebook 的 KRKEnv.step 一樣：黑王從「全部」合法走法隨機挑一步。
+  // chess.js 會確保王不能相鄰、被將軍時必須脫離將軍等正式棋規。
   const blackMoves = game.moves({ verbose:true });
-  const continuingMoves = [];
-  for (const blackMove of blackMoves) {
-    game.move({ from:blackMove.from, to:blackMove.to, promotion:blackMove.promotion });
-    if (policyAnswerForCurrentPosition()) continuingMoves.push(blackMove);
-    game.undo();
-  }
-  const choices = continuingMoves.length ? continuingMoves : blackMoves;
-  const blackMove = choices[Math.floor(Math.random() * choices.length)];
+  const blackMove = blackMoves[Math.floor(Math.random() * blackMoves.length)];
   game.move({ from:blackMove.from, to:blackMove.to, promotion:blackMove.promotion });
   puzzleAnswer = policyAnswerForCurrentPosition();
   if (!puzzleAnswer) {
-    gameOver = true;
-    setStatus(`${feedback} 黑王走 ${blackMove.from}${blackMove.to}；這個後續局面沒有記錄策略。按「換一題」繼續。`);
+    // 原始策略表沒有記過所有合法局面；這種情況保留遊戲並讓玩家照棋規繼續走。
+    setStatus(`${feedback} 黑王隨機走 ${blackMove.from}${blackMove.to}。下一局面未被訓練到，請走任一合法白棋。`);
   } else {
-    setStatus(`${feedback} 黑王走 ${blackMove.from}${blackMove.to}。下一步輪到白方，請再找最佳走法。`);
+    setStatus(`${feedback} 黑王隨機走 ${blackMove.from}${blackMove.to}。下一步輪到白方，請再找最佳走法。`);
   }
   render();
 }
