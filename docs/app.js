@@ -7,8 +7,10 @@ const countEl = document.querySelector("#move-count");
 const aiButton = document.querySelector("#ai-move");
 const qButton = document.querySelector("#show-q");
 const newButton = document.querySelector("#new-game");
+const puzzleButton = document.querySelector("#puzzle-mode");
 const qPanel = document.querySelector("#q-panel");
 const scoreList = document.querySelector("#move-scores");
+const modeNoteEl = document.querySelector("#mode-note");
 
 let policy = {};
 let game;
@@ -17,6 +19,8 @@ let selected = null;
 let qTable = null;
 let qWhiteKing = null;
 let gameOver = false;
+let puzzleMode = false;
+let puzzleAnswer = null;
 
 const files = "abcdefgh";
 const glyph = { wk:"♔", wr:"♖", bk:"♚" };
@@ -45,6 +49,8 @@ function currentState() {
 
 function setStatus(text) { statusEl.textContent = text; }
 
+function setModeNote(text) { modeNoteEl.textContent = text; }
+
 function isWhiteTurn() { return game.turn() === "w" && !gameOver; }
 
 function makeRandomGame() {
@@ -67,6 +73,47 @@ function makeRandomGame() {
       if (!candidate.isGameOver()) return candidate;
     } catch { /* 這個抽法不合法，重新抽即可。 */ }
   }
+}
+
+function makeGameFromState(wk, wr, bk) {
+  const pieces = { [squareName(wk)]: "K", [squareName(wr)]: "R", [squareName(bk)]: "k" };
+  const ranks = [...Array(8).keys()].map(rank => {
+    let empty = 0, text = "";
+    for (let file = 0; file < 8; file++) {
+      const piece = pieces[`${files[file]}${rank + 1}`];
+      if (piece) { if (empty) text += empty; empty = 0; text += piece; } else empty++;
+    }
+    return text + (empty || "");
+  }).reverse();
+  return new Chess(`${ranks.join("/")} w - - 0 1`);
+}
+
+function startPuzzle() {
+  // 策略表裡有大量局面；抽一題時再次確認棋規與答案都有效。
+  const states = Object.keys(policy);
+  for (let tries = 0; tries < 500; tries++) {
+    const [wk, wr, bk] = states[Math.floor(Math.random() * states.length)].split(",").map(Number);
+    const answer = policy[`${wk},${wr},${bk}`];
+    try {
+      const candidate = makeGameFromState(wk, wr, bk);
+      const legal = candidate.moves({ verbose:true });
+      if (!candidate.isGameOver() && legal.some(move => move.from + move.to + (move.promotion || "") === answer)) {
+        game = candidate;
+        whiteMoves = 0;
+        puzzleMode = true;
+        puzzleAnswer = answer;
+        gameOver = false;
+        selected = null;
+        qPanel.hidden = true;
+        setModeNote("解題模式：你執白方，找出訓練策略會走的一步。");
+        setStatus("輪到白方。點選白王或白車，再選擇你認為最好的走法。");
+        puzzleButton.textContent = "下一題";
+        render();
+        return;
+      }
+    } catch { /* 若局面無效，換下一題。 */ }
+  }
+  setStatus("這次無法產生題目，請再按一次解題模式。");
 }
 
 function checkAfterWhiteMove() {
@@ -103,6 +150,7 @@ function aiMove() {
 }
 
 function onSquareClick(square) {
+  if (puzzleMode) return onPuzzleSquareClick(square);
   if (gameOver || game.turn() !== "b") return;
   const piece = game.get(square);
   const legal = game.moves({ verbose:true });
@@ -117,6 +165,32 @@ function onSquareClick(square) {
     checkAfterBlackMove();
   } else if (piece?.color === "b" && piece.type === "k") selected = square;
   else selected = null;
+  render();
+}
+
+function onPuzzleSquareClick(square) {
+  if (gameOver) return;
+  const piece = game.get(square);
+  const legal = game.moves({ verbose:true });
+  if (!selected) {
+    if (piece?.color === "w") { selected = square; render(); }
+    return;
+  }
+  const move = legal.find(item => item.from === selected && item.to === square);
+  if (!move) {
+    selected = piece?.color === "w" ? square : null;
+    render();
+    return;
+  }
+  const chosen = move.from + move.to + (move.promotion || "");
+  game.move({ from:move.from, to:move.to, promotion:move.promotion });
+  selected = null;
+  gameOver = true;
+  if (chosen === puzzleAnswer) {
+    setStatus(`答對了！策略表也選擇 ${puzzleAnswer}。按「下一題」繼續。`);
+  } else {
+    setStatus(`這步是 ${chosen}；策略表建議 ${puzzleAnswer}。按「下一題」再試一題。`);
+  }
   render();
 }
 
@@ -171,7 +245,7 @@ function render() {
     cell.style.setProperty("--base", (file + rank) % 2 ? "var(--light)" : "var(--dark)");
     if (square === selected) cell.classList.add("selected");
     if (legalTargets.has(square)) cell.classList.add("target");
-    if (piece?.color === "b" && game.turn() === "b") cell.classList.add("selectable");
+    if ((piece?.color === "b" && game.turn() === "b" && !puzzleMode) || (piece?.color === "w" && puzzleMode && !gameOver)) cell.classList.add("selectable");
     if (piece) { const span = document.createElement("span"); span.className = `piece ${piece.color === "w" ? "white" : "black"}`; span.textContent = glyph[`${piece.color}${piece.type}`]; cell.append(span); }
     if (file === 0) { const rankLabel=document.createElement("span"); rankLabel.className="coord rank"; rankLabel.textContent=rank; cell.append(rankLabel); }
     if (rank === 1) { const fileLabel=document.createElement("span"); fileLabel.className="coord file"; fileLabel.textContent=files[file]; cell.append(fileLabel); }
@@ -179,14 +253,16 @@ function render() {
     boardEl.append(cell);
   }
   countEl.textContent = `白方已走 ${whiteMoves} / 50 步`;
-  aiButton.disabled = !isWhiteTurn();
+  aiButton.disabled = !isWhiteTurn() || puzzleMode;
+  qButton.disabled = puzzleMode;
 }
 
-function newGame() { game = makeRandomGame(); whiteMoves = 0; gameOver = false; selected = null; qPanel.hidden = true; setStatus("輪到白方 AI。可先查看 Q 分數，或直接讓 AI 走一步。"); render(); }
+function newGame() { game = makeRandomGame(); whiteMoves = 0; gameOver = false; puzzleMode = false; puzzleAnswer = null; selected = null; qPanel.hidden = true; setModeNote("對戰模式：你執黑王。"); puzzleButton.textContent = "進入解題模式"; setStatus("輪到白方 AI。可先查看 Q 分數，或直接讓 AI 走一步。"); render(); }
 
 aiButton.addEventListener("click", aiMove);
 qButton.addEventListener("click", showQ);
 newButton.addEventListener("click", newGame);
+puzzleButton.addEventListener("click", startPuzzle);
 
 // 策略太大，分成五個仍是相同格式的 JSON 檔；進網頁時合併一次。
 // Q 表則完全按需載入，避免第一次開網頁就下載全部 Q 值。
