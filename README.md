@@ -107,3 +107,11 @@ This project is intentionally focused on a simplified chess endgame rather than 
 ## License
 
 This project is shared for educational and learning purposes.
+
+## Cloudflare game
+
+The original notebooks and `docs/` demo are retained. The new game has a static frontend in `frontend/`, a separate Workers API in `backend/`, and a D1 schema in `backend/migrations/`. The KRK tablebase is used by the browser for hints and by the server for speedrun defence. Online rooms use standard chess rules and short polling while the tab is visible.
+
+### Deploy
+
+Install Node.js 24 and run `npm ci` from the repository root. Use a Cloudflare Workers Free account. Create a D1 database and apply the migration with `cf d1 migrations apply <database-id> --dir backend/migrations`. Use the two Workers' `workers.dev` origins without trailing slashes. Set `CHESS_API_URL` to the API origin when running `npm run build`. From `backend/`, set `CHESS_D1_ID` to the database ID and `CHESS_FRONTEND_URL` to the web origin, then run `node ../node_modules/vite/bin/vite.js build` and `cf deploy --prebuilt --mode production --no-provision`. From `frontend/`, run `cf deploy ./dist`.

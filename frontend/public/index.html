@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4ee">
+  <title>王車棋室</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.mjs"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="wordmark" href="#coach"><span class="mark" aria-hidden="true">♜</span><span>王車棋室</span></a>
+      <nav class="navigation" aria-label="遊戲模式">
+        <a href="#coach" data-mode="coach">AI 練習</a>
+        <a href="#online" data-mode="online">線上對戰</a>
+        <a href="#speed" data-mode="speed">3 分鐘速通</a>
+        <a href="#leaderboard" data-mode="leaderboard">排行榜</a>
+      </nav>
+    </div>
+  </header>
+  <main class="shell">
+    <div class="intro">
+      <h1 id="page-title">AI 練習</h1>
+      <p id="page-description">用白王和白車將死黑王。需要幫忙時，請 AI 提示下一步。</p>
+    </div>
+
+    <div id="game-layout" class="layout">
+      <section class="board-frame" aria-label="棋局">
+        <div class="board-bar">
+          <span id="board-side">♔　你執白方</span>
+          <span id="board-state" class="board-state">白方回合</span>
+        </div>
+        <div class="board-stage">
+          <div id="board" class="board" role="group" aria-label="西洋棋棋盤"></div>
+          <div id="board-overlay" class="board-overlay" hidden><span id="overlay-text"></span></div>
+        </div>
+        <div class="board-foot"><span id="board-context">王車對單王</span><span id="board-last-move"></span></div>
+      </section>
+      <aside class="controls" aria-label="遊戲操作">
+        <section id="coach-panel" class="control-card" data-panel="coach">
+          <h2>棋局助手</h2>
+          <p id="coach-status" class="status-text" role="status">輪到你走棋。</p>
+          <div id="hint-card" class="hint-card" hidden>
+            <span>建議走法</span>
+            <strong id="hint-move"></strong>
+            <p id="hint-detail"></p>
+          </div>
+          <div class="actions">
+            <button id="hint" class="button primary" type="button">給我提示</button>
+            <button id="new-practice" class="button secondary" type="button">換一個局面</button>
+          </div>
+          <p class="support-text">點選棋子後，棋盤會標出所有合法的目的地。</p>
+        </section>
+
+        <section id="online-panel" class="control-card" data-panel="online" hidden>
+          <div id="lobby">
+            <h2>雙人房間</h2>
+            <p id="lobby-status" class="status-text" role="status">建立房間並分享邀請，或輸入好友的房間代碼。</p>
+            <div class="actions">
+              <button id="create-room" class="button primary" type="button">建立房間</button>
+              <form id="join-room" class="join-form">
+                <label for="room-code">房間代碼</label>
+                <div class="input-row">
+                  <input id="room-code" name="room-code" maxlength="8" placeholder="8 位代碼" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+                  <button class="button secondary" type="submit">加入</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          <div id="active-room" hidden>
+            <h2>線上棋局</h2>
+            <p id="room-status" class="status-text" role="status"></p>
+            <div class="room-card"><span>房間代碼</span><strong id="active-code"></strong></div>
+            <div class="actions">
+              <button id="share-room" class="button primary" type="button">複製邀請連結</button>
+              <button id="resign" class="button secondary" type="button" hidden>認輸</button>
+              <button id="leave-room" class="button secondary" type="button">離開房間</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="speed-panel" class="control-card" data-panel="speed" hidden>
+          <h2>三分鐘挑戰</h2>
+          <div class="metrics">
+            <div><span>剩餘時間</span><strong id="timer" role="timer">3:00</strong></div>
+            <div><span>將死次數</span><strong id="score">0</strong></div>
+          </div>
+          <p id="speed-status" class="status-text" role="status">將死一次得 1 分，接著挑戰下一個局面。</p>
+          <form id="start-run" class="actions">
+            <label for="player-name">排行榜暱稱</label>
+            <input id="player-name" name="player-name" placeholder="2–16 字" minlength="2" maxlength="32" autocomplete="off" required>
+            <button class="button primary" type="submit">開始計時</button>
+          </form>
+          <div id="speed-actions" class="actions" hidden>
+            <button id="skip" class="button secondary" type="button">跳過這個局面</button>
+            <button id="restart-run" class="button primary" type="button" hidden>再玩一次</button>
+            <a id="show-scores" class="button secondary" href="#leaderboard" hidden>查看排行榜</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <section id="leaderboard-panel" class="ranking" aria-label="速通排行榜" hidden>
+      <div class="ranking-toolbar"><h2>3 分鐘速通 · 前 20 名</h2><button id="refresh-scores" class="button secondary" type="button">重新整理</button></div>
+      <p id="ranking-status" class="status-text" role="status"></p>
+      <table id="scores-table" hidden>
+        <thead><tr><th scope="col">名次</th><th scope="col">玩家</th><th scope="col">將死次數</th><th scope="col">最後得分時間</th></tr></thead>
+        <tbody id="score-rows"></tbody>
+      </table>
+      <a class="button primary ranking-cta" href="#speed">開始速通</a>
+    </section>
+  </main>
+
+  <dialog id="promotion-dialog" aria-labelledby="promotion-title">
+    <form method="dialog">
+      <h2 id="promotion-title">選擇升變棋子</h2>
+      <div class="promotions">
+        <button class="button secondary" value="q">后</button><button class="button secondary" value="r">車</button>
+        <button class="button secondary" value="b">象</button><button class="button secondary" value="n">馬</button>
+      </div>
+      <button class="button quiet" value="cancel">取消</button>
+    </form>
+  </dialog>
+</body>
+</html>
